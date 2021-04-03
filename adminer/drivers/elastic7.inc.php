@@ -1,8 +1,8 @@
 <?php
-$drivers["elastic"] = "Elasticsearch (beta)";
+$drivers["elastic7"] = "Elasticsearch 7 (beta)";
 
-if (isset($_GET["elastic"])) {
-	define("DRIVER", "elastic");
+if (isset($_GET["elastic7"])) {
+	define("DRIVER", "elastic7");
 
 	if (function_exists('json_decode') && ini_bool('allow_url_fopen')) {
 		class Min_DB {
