@@ -8,7 +8,7 @@ if (isset($_GET["elastic7"])) {
 		define("ELASTIC_DB_NAME", "elastic");
 
 		class Min_DB {
-			var $extension = "JSON", $server_info, $errno, $error, $_url, $_db;
+			var $extension = "JSON", $server_info, $errno, $error, $_url;
 
 			/** Performs query
 			 * @param string
@@ -79,7 +79,7 @@ if (isset($_GET["elastic7"])) {
 					return $driver->select($matches[1], array("*"), $where, null, array(), $matches[3]);
 				}
 
-				return $this->rootQuery(($this->_db != "" ? "$this->_db/" : "/") . ltrim($path, '/'), $content, $method);
+				return $this->rootQuery($path, $content, $method);
 			}
 
 			function connect($server, $username, $password) {
@@ -87,17 +87,15 @@ if (isset($_GET["elastic7"])) {
 
 				$this->_url = ($match[1] ? $match[1] : "http://") . "$username:$password@$match[2]";
 
-				$return = $this->query('');
+				$return = $this->query("");
 				if ($return) {
-					$this->server_info = $return['version']['number'];
+					$this->server_info = $return["version"]["number"];
 				}
 
 				return (bool) $return;
 			}
 
 			function select_db($database) {
-				$this->_db = $database;
-
 				return true;
 			}
 
@@ -140,6 +138,7 @@ if (isset($_GET["elastic7"])) {
 			if ($select != array("*")) {
 				$data["fields"] = $select;
 			}
+
 			if ($order) {
 				$sort = array();
 				foreach ($order as $col) {
@@ -148,12 +147,14 @@ if (isset($_GET["elastic7"])) {
 				}
 				$data["sort"] = $sort;
 			}
+
 			if ($limit) {
 				$data["size"] = +$limit;
 				if ($page) {
 					$data["from"] = ($page * $limit);
 				}
 			}
+
 			foreach ($where as $val) {
 				if (preg_match('~^\((.+ OR .+)\)$~', $val, $matches)) {
 					$parts = explode(" OR ", $matches[1]);
@@ -182,37 +183,35 @@ if (isset($_GET["elastic7"])) {
 				}
 			}
 
-			$query = (min_version(7) ? "" : "$table/") . "_search";
+			$query = "$table/_search";
 			$start = microtime(true);
-			$search = $this->_conn->query($query, $data);
+			$search = $this->_conn->rootQuery($query, $data);
 
 			if ($print) {
 				echo $adminer->selectQuery("$query: " . json_encode($data), $start, !$search);
 			}
-			if (!$search) {
+			if (empty($search)) {
 				return false;
 			}
 
 			$return = array();
-			foreach ($search['hits']['hits'] as $hit) {
+			foreach ($search["hits"]["hits"] as $hit) {
 				$row = array();
 				if ($select == array("*")) {
 					$row["_id"] = $hit["_id"];
 				}
 
-				$fields = $hit['_source'];
 				if ($select != array("*")) {
 					$fields = array();
 					foreach ($select as $key) {
-						$fields[$key] = $key == "_id" ? [$hit["_id"]] : $hit['fields'][$key];
+						$fields[$key] = $key == "_id" ? [$hit["_id"]] : $hit["_source"][$key];
 					}
+				} else {
+					$fields = $hit["_source"];
 				}
 
 				foreach ($fields as $key => $val) {
-					if ($data["fields"]) {
-						$val = $val[0];
-					}
-					$row[$key] = (is_array($val) ? json_encode($val) : $val); //! display JSON and others differently
+					$row[$key] = (is_array($val) ? json_encode($val) : $val);
 				}
 
 				$return[] = $row;
